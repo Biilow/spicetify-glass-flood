@@ -1,6 +1,6 @@
 # Glass Flood
 
-A Spicetify theme that takes its colour from whatever you're playing.
+A glass theme for Spicetify that changes colour with your music: the playing song's cover glows behind clear glass, and every playlist, album and artist page takes on its cover's colour.
 
 ![Glass Flood](preview.png)
 

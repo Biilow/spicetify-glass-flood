@@ -1,11 +1,23 @@
 {
   "name": "Glass Flood",
-  "description": "The playing song's cover, blurred, behind the whole app. Clear glass panels, and every playlist, album and artist page flooded with its own colour. Built to stay as smooth as stock Spotify.",
+  "description": "A glass theme that changes colour with your music. The playing song's cover glows behind clear glass panels, and every playlist, album and artist page takes on its cover's colour. As smooth as stock Spotify.",
   "preview": "preview.png",
   "readme": "README.md",
   "usercss": "user.css",
   "schemes": "color.ini",
-  "include": ["https://biilow.github.io/spicetify-glass-flood/theme.js"],
-  "authors": [{ "name": "Biilow", "url": "https://github.com/Biilow" }],
-  "tags": ["dark", "dynamic", "glass", "lightweight"]
+  "include": [
+    "https://biilow.github.io/spicetify-glass-flood/theme.js"
+  ],
+  "authors": [
+    {
+      "name": "Biilow",
+      "url": "https://github.com/Biilow"
+    }
+  ],
+  "tags": [
+    "dark",
+    "dynamic",
+    "glass",
+    "lightweight"
+  ]
 }
