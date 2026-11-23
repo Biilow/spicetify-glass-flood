@@ -1,0 +1,160 @@
+/* Flood: the playing song's cover, blurred, sits behind the whole app, and
+   every panel is a sheet of clear glass over it. Playlist, album and artist
+   pages are flooded top to bottom with that page's own colour.
+
+   Performance rules this file keeps:
+   - No backdrop-filter or CSS filter on anything that stays on screen. The
+     cover is blurred once per song in a 96px canvas (theme.js), so panels only
+     alpha-blend, which is free. Right-click menus are the one exception: they
+     are small and only exist while open.
+   - Nothing animates except two opacity cross-fades and one colour fade, and
+     only when the song or page changes.
+   - Selectors use ids, data-testid and Spotify's readable class names only.
+     The hashed class names change with every Spotify update. */
+
+@property --flood-page {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+html:root {
+  --flood-glass: rgba(10, 10, 14, 0.38);
+  --flood-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --flood-bar: #15151b; /* solid colour for things that stick over scrolling content */
+  background: #0b0b10;
+}
+
+/* The backdrop layer that theme.js fills. */
+#flood-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0b0b10;
+}
+#flood-bg canvas {
+  position: absolute;
+  inset: -4%;
+  width: 108%;
+  height: 108%;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  will-change: opacity;
+}
+#flood-bg canvas.flood-show {
+  opacity: 1;
+}
+#flood-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(8, 8, 12, 0.3), rgba(8, 8, 12, 0.55));
+}
+
+/* Let the backdrop through the app shell. */
+body,
+#main,
+.Root,
+.Root > div {
+  background: transparent !important;
+}
+
+/* Glass panels. */
+#Desktop_LeftSidebar_Id,
+#main-view,
+.Root__right-sidebar-peek,
+.Root > div > div:has(> [data-testid="now-playing-bar"]) {
+  background: var(--flood-glass) !important;
+  box-shadow: var(--flood-edge);
+  border-radius: 12px;
+}
+#global-nav-bar {
+  background: transparent !important;
+}
+.Root > div > div:has(> [data-testid="now-playing-bar"]) {
+  margin: 0 8px 8px;
+}
+
+/* Inside a panel Spotify paints its base colour again on many wrappers.
+   Making that colour clear in these scopes removes all of them at once.
+   The right panel is left out: the now-playing view and lyrics extensions
+   build their fade masks from the base colour, and a clear mask hides the
+   cover and the lyrics. */
+#Desktop_LeftSidebar_Id,
+#main-view,
+#global-nav-bar {
+  --spice-main: transparent;
+  --spice-sidebar: transparent;
+  --spice-player: transparent;
+  --background-base: transparent;
+}
+/* Bright surfaces (play buttons, selected chips) use the base colour as their
+   ink, so they get the real dark value back. */
+.encore-bright-accent-set,
+.encore-inverted-light-set,
+.encore-inverted-set,
+.encore-light-theme {
+  --spice-main: #0d0d11;
+  --spice-sidebar: #0d0d11;
+  --spice-player: #0d0d11;
+}
+#Desktop_LeftSidebar_Id nav,
+#Desktop_LeftSidebar_Id nav > div,
+#Desktop_LeftSidebar_Id .YourLibraryX,
+#Desktop_PanelContainer_Id {
+  background: transparent !important;
+}
+
+/* Page flood: the page's own colour over the whole main view, fading into
+   the song backdrop by the bottom edge instead of stopping under the header. */
+#main-view {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--flood-page) 88%, transparent) 0%,
+      color-mix(in srgb, var(--flood-page) 50%, transparent) 50%,
+      color-mix(in srgb, var(--flood-page) 6%, transparent) 100%
+    ),
+    var(--flood-glass) !important;
+  transition: --flood-page 0.6s ease;
+}
+
+/* Spotify's own header colour bands are empty decoration divs. Clear them so
+   the flood is one surface with no seam under the header. */
+#main-view .main-entityHeader-container > div:empty,
+#main-view main div:empty[style*="background"],
+#main-view [data-testid="overscroll-background"],
+#main-view .playlist-playlist-playlistContent {
+  background: none !important;
+}
+
+/* Bars that stick over scrolling rows must stay solid, or rows show through. */
+#main-view .main-topBar-overlay,
+#main-view .main-trackList-trackListHeaderStuck {
+  background: var(--flood-bar) !important;
+}
+#main-view .main-topBar-background {
+  background: none !important;
+}
+
+/* Cards and inputs: a lighter pane of the same glass. */
+html:root {
+  --spice-card: rgba(255, 255, 255, 0.07);
+  --spice-main-elevated: #1b1b22;
+}
+#global-nav-bar input,
+#global-nav-bar button {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Right-click menus: real frosted glass. A menu is small and short-lived, so
+   a live blur here costs nothing while scrolling, hovering or dragging. */
+.main-contextMenu-menu {
+  background: rgba(22, 22, 28, 0.55) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.7);
+  backdrop-filter: blur(28px) saturate(1.7);
+  box-shadow: var(--flood-edge), 0 16px 32px rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
+}
