@@ -1,4 +1,4 @@
-// Flood theme script. Runs only when the song or the page changes; nothing
+// Glass Flood theme script. Runs only when the song or the page changes; nothing
 // here runs per frame or on a timer once Spotify has started.
 (async function flood() {
   // Installed both locally and through Marketplace: run once.

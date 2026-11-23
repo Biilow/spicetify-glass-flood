@@ -1,8 +1,8 @@
-# Flood
+# Glass Flood
 
 A Spicetify theme that takes its colour from whatever you're playing.
 
-![Flood](preview.png)
+![Glass Flood](preview.png)
 
 - The playing song's cover, blurred, sits behind the whole app and fades when the song changes.
 - The sidebar, main view, right panel and player bar are clear glass over it.
@@ -12,30 +12,30 @@ A Spicetify theme that takes its colour from whatever you're playing.
 
 ## It stays smooth
 
-Most glass themes lag because every panel blurs whatever is behind it on every frame. Flood doesn't do that:
+Most glass themes lag because every panel blurs whatever is behind it on every frame. Glass Flood doesn't do that:
 
 - The cover is blurred once per song into a 96px canvas and stretched. The panels are plain see-through colour, which costs nothing to draw.
 - The only live blur is on right-click menus, which are small and only exist while open.
 - The script runs when the song or the page changes. Nothing runs while you scroll, hover or drag.
 
-On a 317-song playlist at 120 Hz, scroll frame times and hover response measured the same with Flood as with a plain theme.
+On a 317-song playlist at 120 Hz, scroll frame times and hover response measured the same with Glass Flood as with a plain theme.
 
 ## Install
 
-**Marketplace:** search for Flood in the Themes tab and install it.
+**Marketplace:** open the Themes tab, sort by recently updated (or scroll down, since new themes have few stars) and install Glass Flood.
 
 **Manually (macOS / Linux):**
 
 ```bash
-git clone https://github.com/Biilow/spicetify-flood.git
-cd spicetify-flood
+git clone https://github.com/Biilow/spicetify-glass-flood.git
+cd spicetify-glass-flood
 ./install.sh
 ```
 
-**Manually (Windows):** copy `user.css`, `color.ini` and `theme.js` into a folder named `Flood` inside `%appdata%\spicetify\Themes`, then run:
+**Manually (Windows):** copy `user.css`, `color.ini` and `theme.js` into a folder named `GlassFlood` inside `%appdata%\spicetify\Themes`, then run:
 
 ```powershell
-spicetify config current_theme Flood color_scheme Flood inject_css 1 replace_colors 1 inject_theme_js 1
+spicetify config current_theme GlassFlood color_scheme GlassFlood inject_css 1 replace_colors 1 inject_theme_js 1
 spicetify apply
 ```
 
