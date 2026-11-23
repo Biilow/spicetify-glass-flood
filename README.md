@@ -2,7 +2,7 @@
 
 A glass theme for Spicetify that changes colour with your music: the playing song's cover glows behind clear glass, and every playlist, album and artist page takes on its cover's colour.
 
-![Glass Flood with a cool blue cover playing](preview.png)
+![Glass Flood with a cool blue cover playing](preview-blue.png)
 
 ![The same page with a warm orange cover playing](preview-warm.png)
 

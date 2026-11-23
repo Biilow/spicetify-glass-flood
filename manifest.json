@@ -1,7 +1,7 @@
 {
   "name": "Glass Flood",
   "description": "A glass theme that changes colour with your music. The playing song's cover glows behind clear glass panels, and every playlist, album and artist page takes on its cover's colour. As smooth as stock Spotify.",
-  "preview": "preview.png",
+  "preview": "preview-blue.png",
   "readme": "README.md",
   "usercss": "user.css",
   "schemes": "color.ini",
