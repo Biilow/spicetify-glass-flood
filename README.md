@@ -57,6 +57,8 @@ spicetify config current_theme GlassFlood color_scheme GlassFlood inject_css 1 r
 spicetify apply
 ```
 
+**Keep it after Spotify updates (macOS):** Spotify updates wipe Spicetify, themes included. [Spicetify Updater](https://github.com/Biilow/spicetify-updater) puts it back automatically, checks Spotify still works, and rolls back if it doesn't.
+
 ## Compatibility
 
 Tested on Spotify 1.3.10 with Spicetify 2.46.7, alongside the Spicy Lyrics extension. It hooks onto Spotify's ids, test ids and readable class names rather than the hashed ones, so it should survive most Spotify updates. If something looks wrong after an update, open an issue with a screenshot.
