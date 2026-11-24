@@ -126,15 +126,17 @@ html[data-flood-glass="liquid"] {
   --spice-player: transparent;
   --background-base: transparent;
 }
-/* Bright surfaces (play buttons, selected chips) use the base colour as their
-   ink, so they get the real dark value back. */
+/* Bright surfaces (play buttons, selected chips, the Key tags in the track
+   list) use the base colour as their ink, so they get the real dark value back. */
 .encore-bright-accent-set,
 .encore-inverted-light-set,
 .encore-inverted-set,
-.encore-light-theme {
+.encore-light-theme,
+[data-encore-id="tag"] {
   --spice-main: #0d0d11;
   --spice-sidebar: #0d0d11;
   --spice-player: #0d0d11;
+  --background-base: #0d0d11;
 }
 #Desktop_LeftSidebar_Id nav,
 #Desktop_LeftSidebar_Id nav > div,
