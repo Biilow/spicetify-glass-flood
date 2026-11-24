@@ -22,6 +22,8 @@
 
 html:root {
   --flood-tint: 0.38; /* how dark the glass is; the menu's Tint slider sets it */
+  --flood-speed: 1; /* backdrop motion speed, 1 = normal */
+  --flood-dim: 0.55; /* strength of the dark veil over the backdrop (Brightness) */
   --flood-glass: rgb(10 10 14 / var(--flood-tint));
   --flood-surface: var(--flood-glass);
   --flood-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -68,7 +70,52 @@ html[data-flood-motion="live"] #flood-bg canvas:not(#flood-gl) {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(rgba(8, 8, 12, 0.3), rgba(8, 8, 12, 0.55));
+  background: linear-gradient(rgba(8, 8, 12, 0.55), rgb(8, 8, 12));
+  opacity: var(--flood-dim);
+}
+
+/* Drift and Float: the still backdrop sways slowly. Only the finished layer
+   moves, on the compositor, so nothing is redrawn. It runs while music plays
+   and holds its pose when paused. */
+html:is([data-flood-motion="drift"], [data-flood-motion="float"]) #flood-bg canvas:not(#flood-gl) {
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  will-change: opacity, transform;
+  animation: flood-drift calc(22s / var(--flood-speed)) ease-in-out infinite alternate paused;
+}
+html[data-flood-motion="float"] #flood-bg canvas:not(#flood-gl) {
+  animation-name: flood-float;
+  animation-duration: calc(34s / var(--flood-speed));
+  animation-direction: normal;
+}
+html[data-flood-playing] #flood-bg canvas:not(#flood-gl) {
+  animation-play-state: running;
+}
+@keyframes flood-drift {
+  from {
+    transform: translate(-3.5%, -2.4%) rotate(-1.2deg) scale(1);
+  }
+  to {
+    transform: translate(3.5%, 2.4%) rotate(1.2deg) scale(1.06);
+  }
+}
+@keyframes flood-float {
+  0%,
+  100% {
+    transform: translate(-2%, 3%) rotate(-1.4deg) scale(1.02);
+  }
+  35% {
+    transform: translate(4%, -3%) rotate(1deg) scale(1.08);
+  }
+  70% {
+    transform: translate(2%, 4%) rotate(1.6deg) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #flood-bg canvas:not(#flood-gl) {
+    animation: none !important;
+  }
 }
 
 /* Let the backdrop through the app shell. */
@@ -126,17 +173,21 @@ html[data-flood-glass="liquid"] {
   --spice-player: transparent;
   --background-base: transparent;
 }
-/* Bright surfaces (play buttons, selected chips, the Key tags in the track
-   list) use the base colour as their ink, so they get the real dark value back. */
+/* Bright surfaces (play buttons, selected chips) use the base colour as their
+   ink, so they get the real dark value back. */
 .encore-bright-accent-set,
 .encore-inverted-light-set,
 .encore-inverted-set,
-.encore-light-theme,
-[data-encore-id="tag"] {
+.encore-light-theme {
   --spice-main: #0d0d11;
   --spice-sidebar: #0d0d11;
   --spice-player: #0d0d11;
-  --background-base: #0d0d11;
+}
+/* The Key tags in the track list are bright pills whose text takes the base
+   colour, which is clear in here. The base colour itself must not be changed
+   on bright surfaces: play buttons use it as their fill. */
+#main-view [data-encore-id="tag"] {
+  color: #0d0d11;
 }
 #Desktop_LeftSidebar_Id nav,
 #Desktop_LeftSidebar_Id nav > div,
@@ -203,6 +254,20 @@ html[data-flood-page="off"] #main-view::before {
   background: none !important;
 }
 
+/* A cleaner top on playlist, album, artist, show and library pages: the strip
+   that slides in over the header when scrolling is hidden, and the column
+   header sticks to the very top instead of under it. theme.js sets the route. */
+html:is([data-flood-route="playlist"], [data-flood-route="album"], [data-flood-route="artist"], [data-flood-route="show"], [data-flood-route="collection"]) #main-view .main-topBar-container {
+  display: none;
+}
+html:is([data-flood-route="playlist"], [data-flood-route="album"], [data-flood-route="artist"], [data-flood-route="show"], [data-flood-route="collection"]) #main-view .main-trackList-trackListHeader {
+  top: 0 !important; /* Spotify sets the offset with a more specific rule */
+}
+/* The promo banner slot at the top of Home. */
+#main-view [data-testid="home-ads-container"] {
+  display: none;
+}
+
 /* Bars that stick over scrolling rows must stay solid, or rows show through. */
 #main-view .main-topBar-overlay,
 #main-view .main-trackList-trackListHeaderStuck {
@@ -247,7 +312,7 @@ html:root {
 #flood-menu {
   position: fixed;
   z-index: 9999;
-  width: 300px;
+  width: 320px;
   padding: 14px;
   display: grid;
   gap: 12px;
@@ -289,7 +354,9 @@ html:root {
 }
 #flood-menu .flood-seg button {
   flex: 1;
-  padding: 6px 4px;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 6px 2px;
   border: 0;
   border-radius: 8px;
   background: none;

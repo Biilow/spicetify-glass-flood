@@ -15,15 +15,20 @@
   // ---- Options: chosen in the menu, kept in this browser profile -----------
   const CHOICES = {
     page: ["flood", "top", "off"],
-    motion: ["still", "live"],
+    motion: ["still", "drift", "float", "live"],
     glass: ["clear", "liquid"],
   };
+  // Sliders: [lowest, highest].
+  const RANGES = { tint: [0, 80], speed: [25, 200], blur: [0, 100], bright: [0, 100] };
+  const DEFAULTS = { page: "flood", motion: "still", glass: "clear", tint: 38, speed: 100, blur: 50, bright: 50 };
   const STORE = "glass-flood:options";
-  const opts = { page: "flood", motion: "still", glass: "clear", tint: 38 };
+  const opts = { ...DEFAULTS };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE) || "{}");
     for (const key in CHOICES) if (CHOICES[key].includes(saved[key])) opts[key] = saved[key];
-    if (Number.isFinite(saved.tint)) opts.tint = Math.min(80, Math.max(0, Math.round(saved.tint)));
+    for (const key in RANGES) {
+      if (Number.isFinite(saved[key])) opts[key] = Math.min(RANGES[key][1], Math.max(RANGES[key][0], Math.round(saved[key])));
+    }
   } catch (err) {
     console.warn("[flood] saved options unreadable, using defaults", err);
   }
@@ -32,17 +37,22 @@
     root.dataset.floodMotion = opts.motion;
     root.dataset.floodGlass = opts.glass;
     root.style.setProperty("--flood-tint", String(opts.tint / 100));
+    root.style.setProperty("--flood-speed", String(opts.speed / 100));
+    // Brightness is the strength of the dark veil over the backdrop.
+    root.style.setProperty("--flood-dim", String(Math.min(1, ((100 - opts.bright) / 100) * 1.1)));
   }
-  function setOption(key, value) {
-    opts[key] = value;
+  // The one way options change, from the menu or a preset.
+  function update(patch) {
+    Object.assign(opts, patch);
     applyOptions();
     try {
       localStorage.setItem(STORE, JSON.stringify(opts));
     } catch (err) {
       console.warn("[flood] options not saved", err);
     }
-    if (key === "page") setBar();
-    if (key === "motion") live.sync();
+    if ("blur" in patch) repaint();
+    setBar();
+    live.sync();
   }
 
   // ---- Backdrop: the cover, blurred once into a 96px canvas -----------------
@@ -92,19 +102,29 @@
     let raf = 0;
 
     const VERT = "attribute vec2 p; varying vec2 uv; void main(){ uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }";
-    const FRAG = `precision mediump float;
+    // The cover is pushed around by two layers of slow noise, the second fed
+    // by the first, which is what makes it flow like liquid instead of sliding.
+    const FRAG = `precision highp float;
       uniform sampler2D a; uniform sampler2D b; uniform float blend; uniform float t;
       varying vec2 uv;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p); vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+                   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y) * 2.0 - 1.0;
+      }
       void main() {
-        vec2 q = uv;
-        q += 0.085 * vec2(
-          sin(q.y * 2.3 + t * 0.31) + 0.5 * sin(q.y * 4.1 - t * 0.23 + q.x * 1.7),
-          cos(q.x * 2.1 - t * 0.27) + 0.5 * cos(q.x * 3.7 + t * 0.19 + q.y * 2.3));
-        vec2 c = q - 0.5;
-        float turn = 0.35 * sin(t * 0.11) + 0.9 * length(c) * sin(t * 0.07);
-        float s = sin(turn); float k = cos(turn);
-        q = vec2(c.x * k - c.y * s, c.x * s + c.y * k) * 0.8 + 0.5;
-        gl_FragColor = mix(texture2D(a, q), texture2D(b, q), blend);
+        float s = t * 0.09;
+        vec2 big = vec2(noise(uv * 1.4 + vec2(s, s * 0.7)), noise(uv * 1.4 + vec2(-s * 0.8, s * 0.5) + 50.0));
+        vec2 fine = vec2(noise(uv * 3.1 + big * 1.5 + vec2(s * 1.2, -s) + 100.0),
+                         noise(uv * 3.1 + big * 1.5 + vec2(-s, s * 1.1) + 17.0));
+        // Strongest in the middle, calmer at the edges so they never tear.
+        float hold = 0.35 + 0.65 * (1.0 - smoothstep(0.0, 0.75, length(uv - 0.5)));
+        vec2 q = clamp(uv + (big * 0.65 + fine * 0.35) * 0.42 * hold, 0.0, 1.0);
+        vec3 c = mix(texture2D(a, q), texture2D(b, q), blend).rgb;
+        c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 1.25);
+        gl_FragColor = vec4(c, 1.0);
       }`;
 
     function texture(unit) {
@@ -162,7 +182,7 @@
       if (dt >= FRAME - 2) {
         const step = Math.min(dt, 100);
         lastDraw = now;
-        if (moving()) clock += step / 1000;
+        if (moving()) clock += (step / 1000) * (opts.speed / 100);
         if (blend < 1) blend = Math.min(1, blend + step / FADE);
         draw();
       }
@@ -193,7 +213,7 @@
         } catch (err) {
           console.warn("[flood] animated backdrop unavailable", err);
           canvas = gl = null;
-          return setOption("motion", "still");
+          return update({ motion: "still" });
         }
         bg.appendChild(canvas);
       }
@@ -213,15 +233,39 @@
       lastDraw = performance.now();
       wake();
     }
+    // The cover was redrawn in place (blur changed): take it again.
+    function refresh() {
+      if (!gl) return;
+      upload(1, source);
+      if (opts.motion === "live") draw();
+    }
     calm.addEventListener("change", wake);
-    return { sync, setCover, wake };
+    return { sync, setCover, refresh, wake };
   })();
 
+  let current = null; // the cover image now on screen
+  function drawCover(img, layer) {
+    const ctx = layers[layer].getContext("2d");
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    // The Blur slider's 0-100 maps to 3-19px on this 96px canvas.
+    ctx.filter = "blur(" + (3 + opts.blur * 0.16).toFixed(1) + "px) saturate(1.7)";
+    // Drawn larger than the canvas so the blur never reaches a clear edge.
+    ctx.drawImage(img, -SIZE * 0.25, -SIZE * 0.25, SIZE * 1.5, SIZE * 1.5);
+  }
+  // Blur changed: redraw the cover that is showing, in place.
+  function repaint() {
+    if (!current || front < 0) return;
+    drawCover(current, front);
+    live.refresh();
+  }
   function paintCover(uri) {
     if (pending) pending.onload = pending.onerror = null;
     pending = null;
     const url = coverUrl(uri);
-    if (!url) return showLayer(-1); // no cover: plain dark backdrop
+    if (!url) {
+      current = null;
+      return showLayer(-1); // no cover: plain dark backdrop
+    }
     const img = new Image();
     // Spotify's image host allows this, and without it WebGL refuses the canvas.
     img.crossOrigin = "anonymous";
@@ -229,15 +273,13 @@
     img.onload = () => {
       pending = null;
       const next = front === 0 ? 1 : 0; // the hidden layer
-      const ctx = layers[next].getContext("2d");
-      ctx.clearRect(0, 0, SIZE, SIZE);
-      ctx.filter = "blur(11px) saturate(1.7)";
-      // Drawn larger than the canvas so the blur never reaches a clear edge.
-      ctx.drawImage(img, -SIZE * 0.25, -SIZE * 0.25, SIZE * 1.5, SIZE * 1.5);
+      drawCover(img, next);
+      current = img;
       showLayer(next);
     };
     img.onerror = () => {
       pending = null;
+      current = null;
       showLayer(-1);
     };
     img.src = url;
@@ -339,14 +381,28 @@
   new MutationObserver(attach).observe(mainView, { childList: true });
   attach();
 
+  // Which kind of page is open, for the CSS that tidies the top of the page.
+  const history = Spicetify.Platform?.History;
+  const setRoute = (location) => (root.dataset.floodRoute = location.pathname.split("/")[1] || "home");
+  if (history) {
+    history.listen(setRoute);
+    setRoute(history.location);
+  }
+  // Backdrop motion only runs while music plays.
+  function onPlayPause() {
+    root.toggleAttribute("data-flood-playing", Spicetify.Player.data?.isPaused === false);
+    live.wake();
+  }
+
   applyOptions();
   live.sync();
   buildMenu();
-  Spicetify.Player.addEventListener("onplaypause", live.wake);
+  Spicetify.Player.addEventListener("onplaypause", onPlayPause);
   Spicetify.Player.addEventListener("songchange", onSong);
   // Startup only: a paused Spotify restores its last song a moment after launch
   // and sends no songchange for it.
   while (!Spicetify.Player.data?.item) await new Promise((resolve) => setTimeout(resolve, 250));
+  onPlayPause();
   onSong();
 
   // ---- Menu: a small glass popover under a top-bar button -------------------
@@ -356,38 +412,71 @@
       for (const kid of kids || []) node.append(kid);
       return node;
     };
-    const ROWS = [
+    const PRESETS = [
+      ["Classic", DEFAULTS],
+      ["Cinematic", { page: "top", motion: "live", glass: "liquid", tint: 28, speed: 80, blur: 45, bright: 60 }],
+      ["Calm", { page: "off", motion: "drift", glass: "clear", tint: 46, speed: 60, blur: 70, bright: 42 }],
+      ["Glassy", { page: "off", motion: "float", glass: "liquid", tint: 16, speed: 100, blur: 50, bright: 58 }],
+    ];
+    const SEGMENTS = [
       ["page", "Page colour", [["flood", "Flood"], ["top", "Top fade"], ["off", "Off"]]],
-      ["motion", "Backdrop", [["still", "Still"], ["live", "Animated"]]],
+      ["motion", "Backdrop", [["still", "Still"], ["drift", "Drift"], ["float", "Float"], ["live", "Flow"]]],
       ["glass", "Glass", [["clear", "Clear"], ["liquid", "Liquid"]]],
+    ];
+    const SLIDERS = [
+      ["tint", "Tint", (v) => v + "%"],
+      ["speed", "Speed", (v) => (v / 100).toFixed(1) + "\u00d7"],
+      ["blur", "Blur", String],
+      ["bright", "Brightness", String],
     ];
     const menu = el("div", { id: "flood-menu", hidden: true });
     menu.setAttribute("role", "dialog");
     menu.setAttribute("aria-label", "Glass Flood options");
     menu.append(el("div", { className: "flood-menu-title", textContent: "Glass Flood" }));
-    for (const [key, label, choices] of ROWS) {
+    const syncs = []; // each control registers how to show the current options
+    const render = () => syncs.forEach((sync) => sync());
+    const segment = (label, choices, isOn, pick) => {
       const group = el("div", { className: "flood-seg" });
       group.setAttribute("role", "group");
       group.setAttribute("aria-label", label);
       for (const [value, text] of choices) {
         const button = el("button", { type: "button", textContent: text });
-        button.setAttribute("aria-pressed", String(opts[key] === value));
         button.addEventListener("click", () => {
-          setOption(key, value);
-          for (const other of group.children) other.setAttribute("aria-pressed", String(other === button));
+          pick(value);
+          render();
         });
+        syncs.push(() => button.setAttribute("aria-pressed", String(isOn(value))));
         group.append(button);
       }
+      return group;
+    };
+    menu.append(
+      segment(
+        "Presets",
+        PRESETS.map(([name, values]) => [values, name]),
+        (values) => Object.keys(values).every((key) => opts[key] === values[key]),
+        (values) => update({ ...values })
+      )
+    );
+    for (const [key, label, choices] of SEGMENTS) {
+      const group = segment(label, choices, (value) => opts[key] === value, (value) => update({ [key]: value }));
       menu.append(el("div", { className: "flood-menu-row" }, [el("span", { textContent: label }), group]));
     }
-    const tintValue = el("output", { textContent: opts.tint + "%" });
-    const tint = el("input", { type: "range", min: "0", max: "80", step: "1", value: String(opts.tint) });
-    tint.setAttribute("aria-label", "Glass tint");
-    tint.addEventListener("input", () => {
-      setOption("tint", Number(tint.value));
-      tintValue.textContent = tint.value + "%";
-    });
-    menu.append(el("div", { className: "flood-menu-row" }, [el("span", { textContent: "Tint" }), el("div", { className: "flood-tint" }, [tint, tintValue])]));
+    for (const [key, label, show] of SLIDERS) {
+      const value = el("output");
+      const slider = el("input", { type: "range", min: String(RANGES[key][0]), max: String(RANGES[key][1]), step: "1" });
+      slider.setAttribute("aria-label", label);
+      slider.addEventListener("input", () => {
+        update({ [key]: Number(slider.value) });
+        render();
+      });
+      syncs.push(() => {
+        slider.value = String(opts[key]);
+        value.textContent = show(opts[key]);
+      });
+      menu.append(el("div", { className: "flood-menu-row" }, [el("span", { textContent: label }), el("div", { className: "flood-tint" }, [slider, value])]));
+    }
+    render();
     document.body.append(menu);
 
     // Startup only, and separate from the backdrop so a Spotify build without
@@ -411,7 +500,7 @@
       const listen = open ? "addEventListener" : "removeEventListener";
       for (const type of ["pointerdown", "keydown"]) document[listen](type, closeOnOutside, true);
       window[listen]("resize", toggleMenu);
-      if (open) menu.querySelector('[aria-pressed="true"]').focus();
+      if (open) menu.querySelector("button").focus();
       else if (hadFocus) (opener.element.matches("button") ? opener.element : opener.element.querySelector("button"))?.focus(); // element may be a wrapper
     }
   }

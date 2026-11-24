@@ -30,10 +30,13 @@ On a 317-song playlist at 120 Hz, scroll frame times and hover response measured
 
 The droplet button in the top bar opens a small menu. Choices are remembered.
 
+- **Presets**: Classic, Cinematic, Calm and Glassy set everything below in one click.
 - **Page colour**: Flood (the page colour runs top to bottom), Top fade (only behind the header, fading out as you scroll) or Off (plain glass over the song backdrop).
-- **Backdrop**: Still, or Animated, which slowly swirls the blurred cover. It draws a tiny canvas at most 30 times a second and stops while music is paused or the window is hidden.
+- **Backdrop**: Still, Drift (a slow sway), Float (a slow loop) or Flow, which moves the blurred cover like liquid. Flow draws a tiny canvas at most 30 times a second. All motion stops while music is paused or the window is hidden.
 - **Glass**: Clear, or Liquid, which adds a polished rim and a light reflection.
-- **Tint**: how dark the glass is.
+- **Tint**, **Speed**, **Blur**, **Brightness**: how dark the glass is, how fast the backdrop moves, and how soft and bright the cover behind everything is.
+
+Playlist, album, artist, show and library pages also lose the strip that slides over the header while scrolling, for a cleaner top.
 
 ## Install
 
@@ -66,6 +69,10 @@ Pick another theme in Marketplace, or run:
 spicetify config current_theme "" color_scheme ""
 spicetify apply
 ```
+
+## Credits
+
+The Drift and Float motion, the presets and the cleaner page top are ideas borrowed from [Luminous](https://github.com/streetraceing/luminous) (MIT). The Flow backdrop is inspired by the dynamic background in [Spicy Lyrics](https://github.com/Spikerko/spicy-lyrics); its code is not used.
 
 ## License
 
