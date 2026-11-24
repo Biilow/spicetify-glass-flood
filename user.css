@@ -8,7 +8,9 @@
      alpha-blend, which is free. Right-click menus are the one exception: they
      are small and only exist while open.
    - Nothing animates except two opacity cross-fades and one colour fade, and
-     only when the song or page changes.
+     only when the song or page changes. The Top fade page colour fades with
+     scrolling through a scroll timeline, which the compositor runs without
+     script. The Animated backdrop is opt-in and drawn by theme.js.
    - Selectors use ids, data-testid and Spotify's readable class names only.
      The hashed class names change with every Spotify update. */
 
@@ -19,8 +21,11 @@
 }
 
 html:root {
-  --flood-glass: rgba(10, 10, 14, 0.38);
+  --flood-tint: 0.38; /* how dark the glass is; the menu's Tint slider sets it */
+  --flood-glass: rgb(10 10 14 / var(--flood-tint));
+  --flood-surface: var(--flood-glass);
   --flood-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --flood-radius: 12px;
   --flood-bar: #15151b; /* solid colour for things that stick over scrolling content */
   background: #0b0b10;
 }
@@ -46,6 +51,19 @@ html:root {
 #flood-bg canvas.flood-show {
   opacity: 1;
 }
+/* Animated backdrop: one small WebGL canvas stretched over the still ones. */
+#flood-bg #flood-gl {
+  transition: none;
+  will-change: auto;
+  display: none;
+}
+html[data-flood-motion="live"] #flood-bg #flood-gl {
+  display: block;
+  opacity: 1;
+}
+html[data-flood-motion="live"] #flood-bg canvas:not(#flood-gl) {
+  visibility: hidden;
+}
 #flood-bg::after {
   content: "";
   position: absolute;
@@ -66,9 +84,27 @@ body,
 #main-view,
 .Root__right-sidebar-peek,
 .Root > div > div:has(> [data-testid="now-playing-bar"]) {
-  background: var(--flood-glass) !important;
+  background: var(--flood-surface) !important;
   box-shadow: var(--flood-edge);
-  border-radius: 12px;
+  border-radius: var(--flood-radius);
+}
+
+/* Liquid glass: the same clear pane with a polished rim and light on it. The
+   tint stays colourless, so the hue still comes from the cover behind. No
+   blur and no refraction filter: the backdrop is already a smooth blur, so
+   there is nothing at the rim for a lens to bend, and both cost every frame. */
+html[data-flood-glass="liquid"] {
+  --flood-radius: 18px;
+  --flood-edge:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 28px rgba(0, 0, 0, 0.3);
+  --flood-surface:
+    radial-gradient(120% 70% at 0% 0%, rgba(255, 255, 255, 0.13), transparent 62%),
+    radial-gradient(90% 55% at 100% 100%, rgba(255, 255, 255, 0.05), transparent 65%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(179, 179, 179, 0.06)),
+    var(--flood-glass);
 }
 #global-nav-bar {
   background: transparent !important;
@@ -107,18 +143,53 @@ body,
   background: transparent !important;
 }
 
-/* Page flood: the page's own colour over the whole main view, fading into
-   the song backdrop by the bottom edge instead of stopping under the header. */
+/* Page colour: the page's own colour laid over the main view on its own
+   layer, behind the content. Three looks, chosen in the menu:
+   - flood (default): top to bottom, fading into the song backdrop.
+   - top: only behind the header, and it fades out as the page scrolls.
+   - off: plain glass; only the song backdrop colours the page. */
 #main-view {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--flood-page) 88%, transparent) 0%,
-      color-mix(in srgb, var(--flood-page) 50%, transparent) 50%,
-      color-mix(in srgb, var(--flood-page) 6%, transparent) 100%
-    ),
-    var(--flood-glass) !important;
+  isolation: isolate;
+  timeline-scope: --flood-scroll;
+}
+#main-view .main-view-container__scroll-node > [data-overlayscrollbars-viewport] {
+  scroll-timeline: --flood-scroll block;
+}
+#main-view::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--flood-page) 88%, transparent) 0%,
+    color-mix(in srgb, var(--flood-page) 50%, transparent) 50%,
+    color-mix(in srgb, var(--flood-page) 6%, transparent) 100%
+  );
   transition: --flood-page 0.6s ease;
+}
+html[data-flood-page="top"] #main-view::before {
+  bottom: auto;
+  height: min(70%, 560px);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--flood-page) 88%, transparent) 0%,
+    color-mix(in srgb, var(--flood-page) 42%, transparent) 55%,
+    transparent 100%
+  );
+  animation: flood-scroll-fade linear both;
+  animation-timeline: --flood-scroll;
+  animation-range: 0px 380px;
+}
+html[data-flood-page="off"] #main-view::before {
+  display: none;
+}
+@keyframes flood-scroll-fade {
+  to {
+    opacity: 0;
+  }
 }
 
 /* Spotify's own header colour bands are empty decoration divs. Clear them so
@@ -139,22 +210,117 @@ body,
   background: none !important;
 }
 
-/* Cards and inputs: a lighter pane of the same glass. */
+/* Cards: a lighter pane of the same glass, but only inside the panels.
+   Tooltips, menus and pop-ups float above the app and use the same card
+   colour, so outside the panels it stays solid or they turn see-through. */
 html:root {
-  --spice-card: rgba(255, 255, 255, 0.07);
+  --spice-card: #22222a;
   --spice-main-elevated: #1b1b22;
+}
+#Desktop_LeftSidebar_Id,
+#main-view,
+#global-nav-bar,
+#Desktop_PanelContainer_Id,
+.Root > div > div:has(> [data-testid="now-playing-bar"]) {
+  --spice-card: rgba(255, 255, 255, 0.07);
 }
 #global-nav-bar input,
 #global-nav-bar button {
   background-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Right-click menus: real frosted glass. A menu is small and short-lived, so
-   a live blur here costs nothing while scrolling, hovering or dragging. */
-.main-contextMenu-menu {
+/* Right-click menus and tooltips: real frosted glass. They are small and
+   short-lived, so a live blur here costs nothing while scrolling or dragging. */
+.main-contextMenu-menu,
+[data-tippy-root] div:has(> [role="tooltip"]) {
   background: rgba(22, 22, 28, 0.55) !important;
   -webkit-backdrop-filter: blur(28px) saturate(1.7);
   backdrop-filter: blur(28px) saturate(1.7);
   box-shadow: var(--flood-edge), 0 16px 32px rgba(0, 0, 0, 0.4);
   border-radius: 10px;
+}
+
+/* Options menu (theme.js builds it). Small and only on screen while open, so
+   it gets the same live blur as the right-click menus. */
+#flood-menu {
+  position: fixed;
+  z-index: 9999;
+  width: 300px;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  color: #fff;
+  font-size: 13px;
+  background: rgba(22, 22, 28, 0.55);
+  -webkit-backdrop-filter: blur(28px) saturate(1.7);
+  backdrop-filter: blur(28px) saturate(1.7);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 16px 40px rgba(0, 0, 0, 0.5);
+}
+#flood-menu[hidden] {
+  display: none;
+}
+#flood-menu .flood-menu-title {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+#flood-menu .flood-menu-row {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+#flood-menu .flood-menu-row > span {
+  color: rgba(255, 255, 255, 0.7);
+}
+#flood-menu .flood-seg {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+#flood-menu .flood-seg button {
+  flex: 1;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+#flood-menu .flood-seg button:hover {
+  color: #fff;
+}
+#flood-menu .flood-seg button[aria-pressed="true"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+#flood-menu .flood-seg button:focus-visible,
+#flood-menu input:focus-visible {
+  outline: 2px solid var(--spice-button);
+  outline-offset: 1px;
+}
+#flood-menu .flood-tint {
+  display: grid;
+  grid-template-columns: 1fr 38px;
+  align-items: center;
+  gap: 8px;
+}
+#flood-menu input[type="range"] {
+  width: 100%;
+  accent-color: var(--spice-button);
+}
+#flood-menu output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.7);
 }

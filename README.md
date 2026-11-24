@@ -22,6 +22,15 @@ Most glass themes lag because every panel blurs whatever is behind it on every f
 
 On a 317-song playlist at 120 Hz, scroll frame times and hover response measured the same with Glass Flood as with a plain theme.
 
+## Options
+
+The droplet button in the top bar opens a small menu. Choices are remembered.
+
+- **Page colour**: Flood (the page colour runs top to bottom), Top fade (only behind the header, fading out as you scroll) or Off (plain glass over the song backdrop).
+- **Backdrop**: Still, or Animated, which slowly swirls the blurred cover. It draws a tiny canvas at most 30 times a second and stops while music is paused or the window is hidden.
+- **Glass**: Clear, or Liquid, which adds a polished rim and a light reflection.
+- **Tint**: how dark the glass is.
+
 ## Install
 
 **Marketplace:** open the Themes tab, sort by recently updated (or scroll down, since new themes have few stars) and install Glass Flood.
